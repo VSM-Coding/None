@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Защищённый доступ</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #eee; padding: 20px; max-width: 600px; margin: 0 auto; }
+    .card { background: #1e1e1e; padding: 24px; border-radius: 12px; border: 1px solid #333; margin-top: 40px; }
+    input { width: 100%; box-sizing: border-box; background: #121212; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 16px; margin: 12px 0; }
+    button { width: 100%; background: #10b981; color: #000; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .err { color: #ef4444; font-size: 14px; margin-top: 10px; display: none; }
+    #content { display: none; white-space: pre-wrap; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div id="login-box" class="card">
+    <h3 style="margin-top:0">Введите пароль</h3>
+    <input type="password" id="pass" placeholder="Пароль..." onkeydown="if(event.key==='Enter') unlock()">
+    <button onclick="unlock()">Открыть</button>
+    <div id="err" class="err">Неверный пароль или повреждённые данные</div>
+  </div>
+  <div id="content" class="card"></div>
+
+  <script>
+    const PAYLOAD = {"s":"jro8jDUYWFxqOUQvWbp5kQ==","iv":"3j+KFcpmF+a0+PIR","d":"0UBEu4Uf5tVuOZ40VjDHUb/v0IzaXCm/teba6CUSGK+Sch+1bY38Ch79kkiOjXWxcul2qg=="};
+    const b64ToBuf = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+    async function unlock() {
+      const pass = document.getElementById('pass').value;
+      const err = document.getElementById('err');
+      err.style.display = 'none';
+      try {
+        const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+        const key = await crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt: b64ToBuf(PAYLOAD.s), iterations: 100000, hash: "SHA-256" },
+          keyMaterial,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["decrypt"]
+        );
+        const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBuf(PAYLOAD.iv) }, key, b64ToBuf(PAYLOAD.d));
+        document.getElementById('login-box').style.display = 'none';
+        const contentBox = document.getElementById('content');
+        contentBox.innerHTML = new TextDecoder().decode(dec);
+        contentBox.style.display = 'block';
+      } catch (e) {
+        err.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
